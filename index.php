@@ -10,6 +10,7 @@ use Classes\Db;
 // var_dump($table);
 
 // Insert Create
-$table1 = DB::table('users')->create(['name' => 'Ma aye', 'email' => 'maaye@gmail.com', 'password' => 'maaye1234', 'gender' => 2, 'phone' => 8998]);
+$table1 = DB::table('users')->create(['name' => 'ko myo', 'email' => 'komyo@gmail.com', 'password' => '', 'gender' => 1, 'phone' => 3434]);
+var_dump($table1);
 
 // Delete

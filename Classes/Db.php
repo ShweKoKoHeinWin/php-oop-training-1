@@ -112,59 +112,73 @@ class Db
         //     print_r($meta);
         // }
 
+        // Get table structure to decide which cols are necessary
         $stmt = self::$conn->prepare("DESCRIBE " . self::$table);
         $stmt->execute();
         $columns = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        // echo '<pre>';
-        // var_dump($columns);
-        // die();
+
         $tableColumns = [];
         foreach ($columns as $column) {
             $tableColumns[] = [
                 'name' => $column['Field'],
                 'type' => $column['Type'],
-                'user_input' => !($column['Extra'] === 'auto_increment' || isset($column['Default']) || isset($column['Null'])),
+                'unique' => $column['Key'] == 'UNI',
+                'user_input' => $column['Extra'] === 'auto_increment' || !empty($column['Default']) || ($column['Null']) != "NO",
                 // Add more properties as needed
             ];
         }
+        // Check $table col fetch is success so that the process is fine
         if (empty($tableColumns)) {
             return "Unable to fetch table columns.";
         }
-        // var_dump($tableColumns);
-        // Validate that the required keys are present
+        // reassign $tableColumns with necessary col
+        $tableColumns = array_filter($tableColumns, function ($col) {
+            return $col['user_input'] == false;
+        });
+
+        // Validate that the required keys are present in user input array
         foreach ($tableColumns as $col) {
-            if ($col['user_input'] && !array_key_exists($col['name'], $data)) {
-                return "Invalid input data. Missing key: {$col['name']}";
+            if (!array_key_exists($col['name'], $data)) {
+                return "{$col['name']} is Required";
             }
         }
-        // echo 'yes';
-        // die();
         // Validate that values are not empty
         foreach ($data as $key => $value) {
             if (empty($value)) {
                 return "Invalid input data. Empty value for key: $key";
             }
         }
-
+        // reassign which has Unique key
+        $tableColumns = array_filter($tableColumns, function ($col) {
+            return $col['unique'];
+        });
+        // Get Name of cols which is unique
+        $colNames = [];
+        foreach ($tableColumns as $val) {
+            $colNames[] = $val['name'];
+        }
+        // Select from table with the unique field and check if data exist
         $query = "SELECT id From " . self::$table . " WHERE ";
-        $num = 0;
+        $conditions = [];
         foreach ($data as $key => $val) {
-            $num++;
-            if ($num < count($data)) {
-                $query .= "`" . $key . "`=" . "'" . $val . "' AND ";
-            } else {
-                $query .= "`" . $key . "`=" . "'" . $val . "' ";
+            if (in_array($key, $colNames)) {
+                $conditions[] = "`" . $key . "` =" . "'" . $val . "'";
             }
         }
-        $stm = self::$conn->prepare($query);
-        $stm->execute();
-        $counter = $stm->fetchAll(\PDO::FETCH_ASSOC);
-        var_dump($counter);
+        // Check query is not empty
+        if (!empty($conditions)) {
+            $query .= implode(" OR ", $conditions);
+            $stm = self::$conn->prepare($query);
+            $stm->execute();
+            $counter = $stm->fetchAll(\PDO::FETCH_ASSOC);
+        }
+        // WHen data exist
         if (!empty($counter)) {
             echo 'ues';
             return "Data already exists";
         }
 
+        // Do inserting query
         $col_names = '`';
         $col_values = ' ) VALUES ( ';
         self::$instance->query = "INSERT INTO " . self::$table . " ( ";
@@ -182,11 +196,13 @@ class Db
         self::$instance->query .= $col_names . $col_values;
         $stm = self::$conn->prepare(self::$instance->query);
 
+        // check inserting success
         if ($stm->execute()) {
             echo "INserted Successfully";
             return;
         }
         self::$instance->message = "error";
+        return "Inserting Fail";
     }
 
     public function update()
