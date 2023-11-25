@@ -10,7 +10,7 @@ use Classes\Db;
 // var_dump($table);
 
 // Insert Create
-$table1 = DB::table('users')->create(['name' => 'ko myo', 'email' => 'komyo@gmail.com', 'password' => '', 'gender' => 1, 'phone' => 3434]);
+$table1 = DB::table('users')->where('name', 'ko myo')->orWhere('email', 'maaye@gmail.com')->orWhere('password', '')->destroy();
 var_dump($table1);
 
 // Delete

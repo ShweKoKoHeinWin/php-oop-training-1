@@ -201,7 +201,6 @@ class Db
             echo "INserted Successfully";
             return;
         }
-        self::$instance->message = "error";
         return "Inserting Fail";
     }
 
@@ -250,5 +249,30 @@ class Db
             }
         }
         return [];
+    }
+
+    public function destroy()
+    {
+        echo "<pre>";
+        var_dump($this->counter);
+        if (!empty($this->counter)) {
+            foreach ($this->counter as $id) {
+                $this->query = "DELETE FROM " . self::$table . ' WHERE id=:id';
+                $stm = self::$conn->prepare($this->query);
+                $stm->bindParam(':id', $id['id'], \PDO::PARAM_INT);
+                $stm->execute();
+            }
+            $affectedRows = $stm->rowCount();
+            if ($affectedRows === 0) {
+                // Handle the case where the record is not found
+                return "Record not found.";
+            } else {
+                // Record deleted successfully
+                return "Record deleted successfully.";
+            }
+        } else {
+            // Record deleted successfully
+            return "Record not found.";
+        }
     }
 }
