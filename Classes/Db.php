@@ -6,35 +6,37 @@ use PDOException;
 
 class Db
 {
-    protected static $instance;
-    protected static $conn;
-    protected static $table;
-    protected $query;
-    protected $counter;
-    protected $message;
-    // protected $placeholders = [];
+    public static $instance; //instance of object
+    public static $conn;     //store db obj
+    public static $table;    //store table name
+    public $query;           //for concatanation of query by many function
+    public $counter = [];    //for conditino of checking for how many time the same code call
+    public $message;
+    // private $type = false;
+    // public $stop = false;    //for condition of checking for some reason use this to stop
+    // public $placeholders = [];
 
     public static function table($table)
     {
         self::$table = $table;
         if (!self::$instance) {
-            self::$instance = new self();
+            self::$instance = new static();
         }
 
         if (!self::$conn) {
             try {
                 $string = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME;
-                self::$conn = new \PDO($string, DB_USER, DB_PASSWORD);
-                self::$instance->initiateQuery();
+                self::$conn = new \PDO($string, DB_USER, DB_PASSWORD);;
             } catch (PDOException $e) {
                 echo $e->getMessage();
                 die();
             }
         }
+        self::$instance->initiateQuery();
         return self::$instance;
     }
 
-    protected function initiateQuery()
+    public function initiateQuery()
     {
         // initiation purpose -> once table is setted to do crud / we need to get the ids of the row to modify
         $this->query = 'SELECT `id` FROM ' . self::$table;
@@ -43,49 +45,78 @@ class Db
 
     public function where($prop, $sign, $val = null)
     {
+        // if (!$this->stop) {
+
         // Add the WHERE or AND condition
-        $this->query .= isset($this->counter) ? ' AND' : ' WHERE';
+        $this->query .= !empty($this->counter) ? ' AND' : ' WHERE';
 
         // Process the condition
         if (isset($val)) {
             $val = filter_var($val, FILTER_SANITIZE_STRING);
-            $this->query .= ' `' . $prop . '` ' . $sign . ' "' . $val . '"';
+            if (is_numeric($val)) {
+                $this->query .= ' `' . $prop . '` ' . $sign .  $val . " ";
+            } else {
+                $this->query .= ' `' . $prop . '` ' . $sign . '"' . $val . '" ';
+            }
         } else {
             $sign = filter_var($sign, FILTER_SANITIZE_STRING);
-            $this->query .= ' `' . $prop . '`="' . $sign  . '"';
+            if (is_numeric($sign)) {
+                $this->query .= ' `' . $prop . '`=' . $sign . ' ';
+            } else {
+                $this->query .= ' `' . $prop . '`="' . $sign  . '" ';
+            }
         }
-
+        // var_dump($this->query);
         // Prepare and execute the statement
         $stm = self::$conn->prepare($this->query);
         $stm->execute();
 
         // set a counter to check if where is first time or not
         $this->counter = $stm->fetchAll(\PDO::FETCH_ASSOC);
+        // }
+        // if (empty($this->counter)) {
+        //     // $this->stop = true;
+        // }
+        // $this->type = true;
         return self::$instance;
     }
 
 
     public function orWhere($prop, $sign, $val = null)
     {
+        // if (!$this->stop) {
         // Add the WHERE or AND condition
         $this->query .= isset($this->counter) ? ' OR' : ' WHERE';
 
         // Process the condition
         if (isset($val)) {
             $val = filter_var($val, FILTER_SANITIZE_STRING);
-            $this->query .= ' `' . $prop . '` ' . $sign . ' "' . $val . '"';
+            if (is_numeric($val)) {
+                $this->query .= ' `' . $prop . '` ' . $sign .  $val . ' ';
+            } else {
+                $this->query .= ' `' . $prop . '` ' . $sign . '"' . $val . '" ';
+            }
         } else {
             $sign = filter_var($sign, FILTER_SANITIZE_STRING);
-            $this->query .= ' `' . $prop . '`="' . $sign  . '"';
+            if (is_numeric($sign)) {
+                $this->query .= ' `' . $prop . '`=' . $sign;
+            } else {
+                $this->query .= ' `' . $prop . '`="' . $sign  . '"';
+            }
         }
 
         $stm = self::$conn->prepare($this->query);
         $stm->execute();
         $this->counter = $stm->fetchAll(\PDO::FETCH_ASSOC);
+        // // }
+        // if (empty($this->counter)) {
+        //     // $this->stop = true;
+        // }
+        // $this->type = true;
         return self::$instance;
     }
 
-    public static function create(array $data)
+    public function create(array $data)
     {
         // $stmt = self::$conn->prepare("SELECT * FROM " . self::$table);
         // $stmt->execute();
@@ -113,6 +144,13 @@ class Db
         // }
 
         // Get table structure to decide which cols are necessary
+        // reset
+
+        if (self::$instance->type) {
+            return 'Syntax errr';
+        }
+        $this->reset();
+
         $stmt = self::$conn->prepare("DESCRIBE " . self::$table);
         $stmt->execute();
         $columns = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -162,7 +200,11 @@ class Db
         $conditions = [];
         foreach ($data as $key => $val) {
             if (in_array($key, $colNames)) {
-                $conditions[] = "`" . $key . "` =" . "'" . $val . "'";
+                if (is_numeric($val)) {
+                    $conditions[] = "`" . $key . "` =" . $val . " ";
+                } else {
+                    $conditions[] = "`" . $key . "` =" . "'" . $val . "'";
+                }
             }
         }
         // Check query is not empty
@@ -174,7 +216,6 @@ class Db
         }
         // WHen data exist
         if (!empty($counter)) {
-            echo 'ues';
             return "Data already exists";
         }
 
@@ -185,12 +226,22 @@ class Db
         $count = 0;
         foreach ($data as $key => $value) {
             $count++;
-            if ($count < count($data)) {
-                $col_names .= $key . '` , `';
-                $col_values .= '"' . $value . '" , ';
+            if (is_numeric($value)) {
+                if ($count < count($data)) {
+                    $col_names .= $key . '` , `';
+                    $col_values .= '' . $value . ' , ';
+                } else {
+                    $col_names .= $key . '` ';
+                    $col_values .= '' . $value . ')';
+                }
             } else {
-                $col_names .= $key . '` ';
-                $col_values .= '"' . $value . '")';
+                if ($count < count($data)) {
+                    $col_names .= $key . '` , `';
+                    $col_values .= '"' . $value . '" , ';
+                } else {
+                    $col_names .= $key . '` ';
+                    $col_values .= '"' . $value . '")';
+                }
             }
         }
         self::$instance->query .= $col_names . $col_values;
@@ -198,16 +249,51 @@ class Db
 
         // check inserting success
         if ($stm->execute()) {
-            echo "INserted Successfully";
-            return;
+            return "INserted Successfully";
         }
+        // reset
         return "Inserting Fail";
     }
 
-    public function update()
+    public function update($array)
     {
-
-        return self::$instance;
+        if (!isset($this->counter) || empty($this->counter)) {
+            $this->reset();
+            return [];
+        }
+        $complete = 0;
+        foreach ($this->counter as $key => $id) {
+            $query = 'UPDATE ' . self::$table . ' SET ';
+            $count = 0;
+            foreach ($array as $col => $value) {
+                $count++;
+                if ($count < count($array)) {
+                    if (is_numeric($value)) {
+                        $query .= '`' . $col . '`=' . $value . ',';
+                    } else {
+                        $query .= '`' . $col . '`=`' . $value . '",';
+                    }
+                } else {
+                    if (is_numeric($value)) {
+                        $query .= '`' . $col . '`=' . $value;
+                    } else {
+                        $query .= '`' . $col . '`=`' . $value . '`';
+                    }
+                }
+            }
+            $query .= ' WHERE `id`=' . $id['id'];
+            // var_dump($query);
+            $stm = self::$conn->prepare($query);
+            if ($stm->execute()) {
+                $complete += $stm->rowCount();
+            }
+        }
+        var_dump($this->counter);
+        $this->reset();
+        if ($complete > 0) {
+            return $complete . 'Rows Affected';
+        }
+        return "Fail";
     }
 
     public function store()
@@ -218,6 +304,9 @@ class Db
 
     public function all()
     {
+        // if ($this->type) {
+        //     return 'Syntax errr';
+        // }
         $stm = self::$conn->prepare('SELECT * FROM ' . self::$table);
         $isSuccess = $stm->execute();
         if ($isSuccess) {
@@ -226,35 +315,73 @@ class Db
                 return $data;
             }
         }
+        // var_dump();
+        return [];
+    }
+
+    public static function find($id)
+    {
+        try {
+            $stm = self::$conn->prepare('SELECT id FROM ' . self::$table . ' WHERE id=' . $id);
+            var_dump($stm);
+            // $stm->bindParam(':id', $id, \PDO::PARAM_INT);
+            $isSuccess = $stm->execute();
+            if ($isSuccess) {
+                $data = $stm->fetchAll(\PDO::FETCH_ASSOC);
+                if (is_array($data) && count($data) > 0) {
+                    self::$instance->counter = $data;
+                    // return $this->get();
+                    // $this->type = true;
+                    // // reset
+                    // $this->reset();
+                    return self::$instance;
+                }
+            }
+        } catch (\PDOException $e) {
+            self::$instance->reset();
+            // Handle database error
+            return [];
+        }
+
+        // reset
+        self::$instance->reset();
         return [];
     }
 
     public function get()
     {
-
+        var_dump($this->query);
         if (!isset($this->counter) || empty($this->counter)) {
+            $this->reset();
             return [];
         }
+
         $ids = array_map(function ($obj) {
             return $obj['id'];
         }, $this->counter);
 
-        $placeholders = implode(',', $ids);
-        $sql = self::$conn->prepare('SELECT * FROM ' . self::$table . ' WHERE id IN (' . $placeholders . ')');
-        $isSuccess = $sql->execute();
-        if ($isSuccess) {
-            $data = $sql->fetchAll(\PDO::FETCH_OBJ);
-            if (is_array($data) && count($data) > 0) {
-                return $data;
+        try {
+            $placeholders = implode(',', $ids);
+            $sql = self::$conn->prepare('SELECT * FROM ' . self::$table . ' WHERE id IN (' . $placeholders . ')');
+            $isSuccess = $sql->execute();
+            if ($isSuccess) {
+                $data = $sql->fetchAll(\PDO::FETCH_ASSOC);
+                if (is_array($data) && count($data) > 0) {
+                    return $data;
+                }
             }
+        } catch (\PDOException $e) {
+            // Handle database error
+            $this->reset();
+            return [];
         }
+
+        $this->reset();
         return [];
     }
 
     public function destroy()
     {
-        echo "<pre>";
-        var_dump($this->counter);
         if (!empty($this->counter)) {
             foreach ($this->counter as $id) {
                 $this->query = "DELETE FROM " . self::$table . ' WHERE id=:id';
@@ -264,15 +391,39 @@ class Db
             }
             $affectedRows = $stm->rowCount();
             if ($affectedRows === 0) {
+                $this->reset();
                 // Handle the case where the record is not found
-                return "Record not found.";
+                return "Record not found1.";
             } else {
+                $this->reset();
                 // Record deleted successfully
                 return "Record deleted successfully.";
             }
         } else {
             // Record deleted successfully
+            $this->reset();
             return "Record not found.";
         }
+    }
+
+    // Reset Variable
+    public function reset()
+    {
+        $this->query = '';
+        $this->counter = [];
+        // $this->stop = false;
+        // $this->type = false;
+    }
+
+    public function __destruct()
+    {
+        // if ($this->type === 'find') {
+        //     if (!empty($this->counter)) {
+        //         return $this->get();
+        //     } else {
+        //         return [];
+        //     }
+        // }
+        $this->reset();
     }
 }
