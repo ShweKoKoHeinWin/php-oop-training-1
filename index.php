@@ -2,65 +2,75 @@
 
 include_once('Bootstrap.php');
 
+
 use Classes\Db;
 use Classes\User;
-// Select
-// $table = DB::table('users')->orWhere('name', 'Shwe')->orWhere('phone', 23464)->get();
-echo "<pre>";
-// var_dump($table);
+use Classes\Validate;
+use Classes\Session;
+use Classes\Route;
 
-// Insert Create
-// $table1 = DB::table('users')->where('name', 'ko myo')->orWhere('email', 'maaye@gmail.com')->orWhere('password', '')->destroy();
+Session::startSession();
 
-// $table1 = DB::table('users')->find(3);
-// echo "<hr>";
-// $table2 = DB::table('users')->find(6);
-// echo "<hr>";
-// $table3 = DB::table('users')->find(7);
-// var_dump($table1);
-// echo "<hr>";
-// var_dump($table2);
-// echo "<hr>";
-// var_dump($table3);
-// echo "<hr>";
-// var_dump($table3->destroy());
-// echo "<pre>";
-$select1 = User::find(2)->get();
-// $select2 = DB::table('users')->where('id', 1)->orWhere('gender', 1)->update(['phone' => 999]);
-// $select3 = User::where('name', 'Ma mi')->orWhere('name', 'Ma bu')->get(['phone' => 55]);
-// echo "<hr>";
-// $select2 = DB::table('users')->where('name', 'aaaa')->get();
-// $select3 = DB::table('users')->where('name', 'Ma mi')->get();
-// // echo "<hr>";
-// $create1 = User::create(['id' => 2, 'name' => 'aaaa', 'email' => 'aaaa@gmail.com', 'password' => 'aaaa2003', 'phone' => 34534, 'gender' => 1]);
-// // echo "<hr>";
-// $create2 = DB::table('users')->create(['id' => 30, 'name' => 'ppp', 'email' => 'ppp@gmail.com', 'password' => 'ppp2003', 'phone' => 34534, 'gender' => 1]);
-// echo "<hr>";
-// $create3 = DB::table('users')->create(['id' => 1, 'name' => '', 'email' => 'bbbb@gmail.com', 'password' => '', 'phone' => 34534, 'gender' => 1]);
-// echo "<hr>";
-// $create4 = DB::table('users')->create(['id' => 1, 'name' => 'bbbb', 'email' => 'bbbb@gmail.com', 'password' => 'bbbb2003', 'gender' => 1, 'phone' => 34534]);
-// echo "<pre>";
-// $delete1 = DB::table('users')->find(3)->destroy();
+// $create1 = User::create(['name' => 'Shwe Ko', 'email' => 'shweko@gmail.com', 'password' => 'shweko2003', 'gender' => 1, 'phone' => '3333']);
+// var_dump($create1);
 // echo '<hr>';
-// $delete2 = DB::table('users')->where('id', 3)->get();
-// $delete2 = DB::table('users')->where('name', 'bbbb')->orWhere('id', 7)->destroy();
-// echo "<hr> one";
-// var_dump($create1);
-// var_dump($select1->destroy());
-echo "<hr> two";
-var_dump($select1);
-// echo "<hr> create";
-// echo "<hr> one";
-// var_dump($create1);
-// echo "<hr> two";
+
+// $get1 = User::get_by_name('aaaa');
+// var_dump($get1);
+
+// $create2 = User::create(['id' => 4, 'name' => 'Nyune Lay', 'email' => 'nyune@gmail.com', 'password' => 'nyunelay', 'gender' => 2, 'phone' => '44']);
 // var_dump($create2);
-echo "<hr> three";
-// var_dump($select3);
-// echo "<hr> four";
-// var_dump($create4);
-// // echo "<hr>";
-// var_dump($delete1);
-// echo "<hr>";
-// var_dump($delete2);
-// var_dump($delete2);
-// Delete
+// echo '<hr>';
+
+// $get2 = User::get_by_id(4);
+// var_dump($get2);
+
+// $create3 = User::create(['password' => 'shweko2003', 'gender' => 1, 'phone' => '3333']);
+// var_dump($create3);
+// echo '<hr>';
+
+// $get3 = User::get_by_email('bbbb@gmail.com');
+// var_dump($get3);
+// echo '<hr>';
+
+// $find = User::find(2);
+// var_dump($find);
+// echo '<hr>';
+
+// $db = Db::table('users')->where('name', 'Shwe Ko')->get();
+// var_dump($db);
+// echo '<hr>';
+
+// $dbdelete1 = Db::table('users')->where('name', 'Shwe Ko')->destroy();
+// var_dump($dbdelete1);
+// echo '<hr>';
+
+// $dbdelete2 = Db::table('users')->where('name', 'Shwe Ko')->orWhere('name', 'aaaa')->destroy();
+// var_dump($dbdelete2);
+// echo '<hr>';
+
+// $dbUpdate = Db::table('users')->where('gender', 1)->update(['phone' => 0]);
+// var_dump($dbUpdate);
+// echo '<hr>';
+// $validate = Validate::rules(['name' => '', 'email' => 'shweko@gmail.'], ['name' => 'required|max:3', 'email' => 'required|email']);
+// var_dump(Validate::verify('nyunelay', $get2[0]['password']));
+// var_dump(password_verify('hsushoon',  password_hash('hsushoon', PASSWORD_DEFAULT)));
+// var_dump(password_hash('hsushoon', PASSWORD_DEFAULT), $get2[0]['password']);
+
+$errors = Validate::getErrors();
+var_dump($_SESSION);
+?>
+
+<?php
+echo !User::auth() ? "<h3><a href='index.php?route=login'>login</a></h3>" : "";
+?>
+<?php
+echo !User::auth() ? "<h3><a href='index.php?route=signup'>signup</a></h3>" : "";
+?>
+<?php
+echo User::auth() ? "<h3><a href='index.php?route=logout'>logout</a></h3>" : "";
+?>
+
+
+<?php
+Route::controller();

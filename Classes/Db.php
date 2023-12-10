@@ -12,6 +12,8 @@ class Db
     public $query;           //for concatanation of query by many function
     public $counter = [];    //for conditino of checking for how many time the same code call
     public $message;
+    public $columns = [];
+
     // private $type = false;
     // public $stop = false;    //for condition of checking for some reason use this to stop
     // public $placeholders = [];
@@ -32,8 +34,23 @@ class Db
                 die();
             }
         }
+
         self::$instance->initiateQuery();
         return self::$instance;
+    }
+
+    public function getColumns()
+    {
+        $result = [];
+        $stmt = self::$conn->prepare("DESCRIBE " . self::$table);
+        $stmt->execute();
+        $columns = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        foreach ($columns as $col) {
+            self::$instance->columns[] = $col['Field'];
+            $result[] = $col['Field'];
+        }
+        return $result;
     }
 
     public function initiateQuery()
@@ -146,9 +163,9 @@ class Db
         // Get table structure to decide which cols are necessary
         // reset
 
-        if (self::$instance->type) {
-            return 'Syntax errr';
-        }
+        // if (self::$instance->type) {
+        //     return 'Syntax errr';
+        // }
         $this->reset();
 
         $stmt = self::$conn->prepare("DESCRIBE " . self::$table);
@@ -226,21 +243,42 @@ class Db
         $count = 0;
         foreach ($data as $key => $value) {
             $count++;
-            if (is_numeric($value)) {
-                if ($count < count($data)) {
-                    $col_names .= $key . '` , `';
-                    $col_values .= '' . $value . ' , ';
+            if ($key == 'password') {
+                $value = Validate::encrypt($value);
+                if (is_numeric($value)) {
+                    if ($count < count($data)) {
+                        $col_names .= $key . '` , `';
+                        $col_values .= '' . $value . ' , ';
+                    } else {
+                        $col_names .= $key . '` ';
+                        $col_values .= '' . $value . ')';
+                    }
                 } else {
-                    $col_names .= $key . '` ';
-                    $col_values .= '' . $value . ')';
+                    if ($count < count($data)) {
+                        $col_names .= $key . '` , `';
+                        $col_values .= '"' . $value . '" , ';
+                    } else {
+                        $col_names .= $key . '` ';
+                        $col_values .= '"' . $value . '")';
+                    }
                 }
             } else {
-                if ($count < count($data)) {
-                    $col_names .= $key . '` , `';
-                    $col_values .= '"' . $value . '" , ';
+                if (is_numeric($value)) {
+                    if ($count < count($data)) {
+                        $col_names .= $key . '` , `';
+                        $col_values .= '' . $value . ' , ';
+                    } else {
+                        $col_names .= $key . '` ';
+                        $col_values .= '' . $value . ')';
+                    }
                 } else {
-                    $col_names .= $key . '` ';
-                    $col_values .= '"' . $value . '")';
+                    if ($count < count($data)) {
+                        $col_names .= $key . '` , `';
+                        $col_values .= '"' . $value . '" , ';
+                    } else {
+                        $col_names .= $key . '` ';
+                        $col_values .= '"' . $value . '")';
+                    }
                 }
             }
         }
@@ -249,7 +287,10 @@ class Db
 
         // check inserting success
         if ($stm->execute()) {
-            return "INserted Successfully";
+            $result = self::$conn->prepare("SELECT id FROM " . self::$table . " WHERE `name`='" . $data['name'] . "' AND `email`='" . $data['email'] . "'");
+            $result->execute();
+            $result = $result->fetchColumn();
+            return $result;
         }
         // reset
         return "Inserting Fail";
@@ -350,7 +391,6 @@ class Db
 
     public function get()
     {
-        var_dump($this->query);
         if (!isset($this->counter) || empty($this->counter)) {
             $this->reset();
             return [];
@@ -367,6 +407,7 @@ class Db
             if ($isSuccess) {
                 $data = $sql->fetchAll(\PDO::FETCH_ASSOC);
                 if (is_array($data) && count($data) > 0) {
+                    $this->reset();
                     return $data;
                 }
             }
